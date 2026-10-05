@@ -1,6 +1,6 @@
 # SPEC 02 — Power Pellets y fantasmas asustados (comibles)
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-10-05
 > **Objetivo:** Añadir Power Pellets en las cuatro esquinas del laberinto que activan el modo asustado en los fantasmas, permitiendo a Pac-Man comerlos para ganar puntos escalonados y enviándolos de regreso a la pen en forma de ojos para regenerarse.
@@ -140,20 +140,20 @@ return {
 
 ## Acceptance criteria
 
-- [ ] Existen exactamente 4 Power Pellets en las posiciones `(1, 3)`, `(26, 3)`, `(1, 23)` y `(26, 23)`.
-- [ ] Los Power Pellets se renderizan más grandes que los dots normales y parpadean.
-- [ ] Comer un Power Pellet añade exactamente 50 puntos al marcador y descuenta 1 a `dotsRemaining`.
-- [ ] Comer un Power Pellet activa el modo asustado durante 420 frames (~7 segundos).
-- [ ] Todos los fantasmas fuera de la pen pasan a `mode = 'frightened'`, invierten su dirección y su velocidad pasa a `0.05`.
-- [ ] Los fantasmas asustados se dibujan con cuerpo azul y cara asustada.
-- [ ] Durante los últimos 120 frames del modo asustado, los fantasmas asustados parpadean alternando azul y blanco.
-- [ ] Al expirar el temporizador, los fantasmas que siguen asustados vuelven a `mode = 'normal'` y velocidad `0.1`.
-- [ ] Si Pac-Man colisiona con un fantasma asustado, Pac-Man no pierde vidas.
-- [ ] Comer fantasmas otorga puntajes escalonados (200, 400, 800, 1600 puntos) dentro de la misma activación.
-- [ ] El fantasma comido pasa a `mode = 'eaten'`, dibuja solo sus ojos y se desplaza a velocidad rápida (`0.2`) hacia `PEN_EXIT`/pen.
-- [ ] Pac-Man no sufre daño ni puede volver a comer a un fantasma en estado `mode = 'eaten'`.
-- [ ] Al llegar a la pen, el fantasma en estado `eaten` se regenera a `mode = 'normal'` con su velocidad e IA correspondientes.
-- [ ] Comer un nuevo Power Pellet reinicia el temporizador de modo asustado a 420 frames y reinicia la cadena de puntos a 200.
+- [x] Existen exactamente 4 Power Pellets en las posiciones `(1, 3)`, `(26, 3)`, `(1, 23)` y `(26, 23)`.
+- [x] Los Power Pellets se renderizan más grandes que los dots normales y parpadean.
+- [x] Comer un Power Pellet añade exactamente 50 puntos al marcador y descuenta 1 a `dotsRemaining`.
+- [x] Comer un Power Pellet activa el modo asustado durante 420 frames (~7 segundos).
+- [x] Todos los fantasmas fuera de la pen pasan a `mode = 'frightened'`, invierten su dirección y su velocidad pasa a `0.05`.
+- [x] Los fantasmas asustados se dibujan con cuerpo azul y cara asustada.
+- [x] Durante los últimos 120 frames del modo asustado, los fantasmas asustados parpadean alternando azul y blanco.
+- [x] Al expirar el temporizador, los fantasmas que siguen asustados vuelven a `mode = 'normal'` y velocidad `0.1`.
+- [x] Si Pac-Man colisiona con un fantasma asustado, Pac-Man no pierde vidas.
+- [x] Comer fantasmas otorga puntajes escalonados (200, 400, 800, 1600 puntos) dentro de la misma activación.
+- [x] El fantasma comido pasa a `mode = 'eaten'`, dibuja solo sus ojos y se desplaza a velocidad rápida (`0.2`) hacia `PEN_EXIT`/pen.
+- [x] Pac-Man no sufre daño ni puede volver a comer a un fantasma en estado `mode = 'eaten'`.
+- [x] Al llegar a la pen, el fantasma en estado `eaten` se regenera a `mode = 'normal'` con su velocidad e IA correspondientes.
+- [x] Comer un nuevo Power Pellet reinicia el temporizador de modo asustado a 420 frames y reinicia la cadena de puntos a 200.
 
 ---
 

@@ -11,6 +11,12 @@ const DIRS = {
 
 const PACMAN_SPEED = 0.125; // 1/8 celda/frame -> alinea cada 8 frames
 const GHOST_SPEED = 0.1;    // 1/10 celda/frame
+const GHOST_FRIGHTENED_SPEED = 0.05;
+const GHOST_EATEN_SPEED = 0.2;
+const FRIGHTENED_DURATION = 420;     // 7s a 60fps
+const FRIGHTENED_FLASH_START = 120;  // 2s restantes para parpadear
+const GHOST_SCORES = [ 200, 400, 800, 1600 ];
+const OPPOSITE = { left: 'right', right: 'left', up: 'down', down: 'up' };
 
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
@@ -28,6 +34,8 @@ function createGame() {
     lives: 3,
     dotsRemaining: dots,
     dotsEaten: 0,
+    frightenedTimer: 0,
+    ghostsEatenInChain: 0,
     grid,
     pacman: {
       x: PACMAN_START.x,
@@ -45,6 +53,7 @@ function createGame() {
       dotLimit: g.dotLimit,
       corner: g.corner,
       insidePen: g.insidePen,
+      mode: 'normal',
     } ) ),
   };
 }
@@ -109,12 +118,30 @@ function movePacman( game ) {
       p.dir = p.nextDir;
       p.nextDir = null;
     }
-    // Comer dot.
-    if ( grid[ p.y ][ p.x ] === 2 ) {
+    // Comer dot o power pellet.
+    const tile = grid[ p.y ][ p.x ];
+    if ( tile === 2 ) {
       grid[ p.y ][ p.x ] = 0;
       game.score += 10;
       game.dotsRemaining--;
       game.dotsEaten++;
+    } else if ( tile === 4 ) {
+      grid[ p.y ][ p.x ] = 0;
+      game.score += 50;
+      game.dotsRemaining--;
+      game.dotsEaten++;
+      game.frightenedTimer = FRIGHTENED_DURATION;
+      game.ghostsEatenInChain = 0;
+      for ( const g of game.ghosts ) {
+        if ( g.mode !== 'eaten' ) {
+          g.mode = 'frightened';
+          g.speed = GHOST_FRIGHTENED_SPEED;
+          const opp = OPPOSITE[ g.dir ];
+          if ( opp && canMove( grid, g.x, g.y, opp, 'ghost', g ) ) {
+            g.dir = opp;
+          }
+        }
+      }
     }
     // Si no puede seguir, se detiene en la celda.
     if ( !canMove( grid, p.x, p.y, p.dir, 'pacman' ) ) return;
@@ -160,12 +187,16 @@ function resetPositions( game ) {
   p.y = PACMAN_START.y;
   p.dir = 'left';
   p.nextDir = null;
+  game.frightenedTimer = 0;
+  game.ghostsEatenInChain = 0;
   game.ghosts.forEach( ( g, i ) => {
     const start = GHOST_STARTS[ i ];
     g.x = start.x;
     g.y = start.y;
     g.dir = 'up';
+    g.speed = GHOST_SPEED;
     g.dotLimit = start.dotLimit;
+    g.mode = 'normal';
     // Tras morir Pacman los cuatro salen: el arcade no vuelve a contar puntos.
     g.insidePen = false;
   } );
@@ -176,19 +207,35 @@ function collides( a, b ) {
 }
 
 function update( game ) {
+  if ( game.frightenedTimer > 0 ) {
+    game.frightenedTimer--;
+    if ( game.frightenedTimer === 0 ) {
+      for ( const g of game.ghosts ) {
+        if ( g.mode === 'frightened' ) {
+          g.mode = 'normal';
+          g.speed = GHOST_SPEED;
+        }
+      }
+    }
+  }
+
   movePacman( game );
   releaseGhosts( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
   for ( const g of game.ghosts ) {
     if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
+      if ( g.mode === 'frightened' ) {
+        // En paso 4 se detalla completamente comer fantasmas
+      } else if ( g.mode !== 'eaten' ) {
+        game.lives--;
+        if ( game.lives <= 0 ) {
+          game.state = 'lost';
+          return;
+        }
+        resetPositions( game );
+        break;
       }
-      resetPositions( game );
-      break;
     }
   }
 
@@ -198,3 +245,10 @@ function update( game ) {
 window.createGame = createGame;
 window.update = update;
 window.DIRS = DIRS;
+window.GHOST_SPEED = GHOST_SPEED;
+window.GHOST_FRIGHTENED_SPEED = GHOST_FRIGHTENED_SPEED;
+window.GHOST_EATEN_SPEED = GHOST_EATEN_SPEED;
+window.FRIGHTENED_DURATION = FRIGHTENED_DURATION;
+window.FRIGHTENED_FLASH_START = FRIGHTENED_FLASH_START;
+window.GHOST_SCORES = GHOST_SCORES;
+window.OPPOSITE = OPPOSITE;

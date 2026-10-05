@@ -16,7 +16,6 @@ const GHOST_EATEN_SPEED = 0.2;
 const FRIGHTENED_DURATION = 420;     // 7s a 60fps
 const FRIGHTENED_FLASH_START = 120;  // 2s restantes para parpadear
 const GHOST_SCORES = [ 200, 400, 800, 1600 ];
-const OPPOSITE = { left: 'right', right: 'left', up: 'down', down: 'up' };
 
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
@@ -66,9 +65,11 @@ function aligned( v ) {
 //   pacman: bloqueado por pared (1) y puerta (3)
 //   ghost:  bloqueado solo por pared (1)
 function isWall( grid, x, y, actor ) {
-  if ( y < 0 || y >= grid.length ) return true;
-  if ( x < 0 || x >= grid[ 0 ].length ) return true;
-  const v = grid[ y ][ x ];
+  const gx = Math.round( x );
+  const gy = Math.round( y );
+  if ( gy < 0 || gy >= grid.length ) return true;
+  if ( gx < 0 || gx >= grid[ 0 ].length ) return true;
+  const v = grid[ gy ][ gx ];
   if ( v === 1 ) return true;
   if ( v === 3 && actor === 'pacman' ) return true;
   return false;
@@ -78,13 +79,15 @@ function isWall( grid, x, y, actor ) {
 function canMove( grid, x, y, dir, actor, ghost ) {
   const d = DIRS[ dir ];
   if ( !d ) return false;
-  const tx = x + d.x;
-  const ty = y + d.y;
+  const rx = Math.round( x );
+  const ry = Math.round( y );
+  const tx = rx + d.x;
+  const ty = ry + d.y;
   // Tunel: salir por un borde en la fila del tunel siempre es valido.
   if ( ty === TUNNEL_ROW && ( tx < 0 || tx >= grid[ 0 ].length ) ) return true;
   if ( isWall( grid, tx, ty, actor ) ) return false;
   if ( actor === 'ghost' && ghost ) {
-    const inPenArea = inPen( x, y ) || isDoor( grid, x, y );
+    const inPenArea = inPen( rx, ry ) || isDoor( grid, rx, ry );
     const intoPenArea = inPen( tx, ty ) || isDoor( grid, tx, ty );
     if ( ghost.mode === 'eaten' ) {
       // Los fantasmas comidos (ojos) pueden regresar a traves de la puerta a la pen
@@ -141,7 +144,7 @@ function movePacman( game ) {
           g.mode = 'frightened';
           g.speed = GHOST_FRIGHTENED_SPEED;
           const opp = OPPOSITE[ g.dir ];
-          if ( opp && canMove( grid, g.x, g.y, opp, 'ghost', g ) ) {
+          if ( opp && canMove( grid, Math.round( g.x ), Math.round( g.y ), opp, 'ghost', g ) ) {
             g.dir = opp;
           }
         }
@@ -161,12 +164,34 @@ function movePacman( game ) {
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
+  const d = DIRS[ g.dir ];
 
-  if ( aligned( g.x ) && aligned( g.y ) ) {
+  let step = g.speed;
+  const targetX = d.x > 0 ? Math.ceil( g.x ) : d.x < 0 ? Math.floor( g.x ) : g.x;
+  const targetY = d.y > 0 ? Math.ceil( g.y ) : d.y < 0 ? Math.floor( g.y ) : g.y;
+
+  const distToTile = Math.abs( ( targetX - g.x ) * d.x + ( targetY - g.y ) * d.y );
+
+  if ( distToTile <= step + 1e-4 && distToTile > 1e-4 ) {
+    g.x = targetX;
+    g.y = targetY;
+
+    if ( g.mode === 'eaten' ) {
+      if ( ( g.x === PEN_EXIT.x && g.y === PEN_EXIT.y ) || inPen( g.x, g.y ) || isDoor( grid, g.x, g.y ) ) {
+        g.mode = 'normal';
+        g.speed = GHOST_SPEED;
+        g.insidePen = false;
+      }
+    }
+
+    decideGhost( game, g );
+    if ( ! canMove( grid, g.x, g.y, g.dir, 'ghost', g ) ) return;
+
+    step -= distToTile;
+  } else if ( aligned( g.x ) && aligned( g.y ) ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
 
-    // Regenerar si estaba en modo eaten y llego a la zona de la pen/puerta
     if ( g.mode === 'eaten' ) {
       if ( ( g.x === PEN_EXIT.x && g.y === PEN_EXIT.y ) || inPen( g.x, g.y ) || isDoor( grid, g.x, g.y ) ) {
         g.mode = 'normal';
@@ -179,9 +204,9 @@ function moveGhost( game, g ) {
     if ( ! canMove( grid, g.x, g.y, g.dir, 'ghost', g ) ) return;
   }
 
-  const d = DIRS[ g.dir ];
-  g.x += d.x * g.speed;
-  g.y += d.y * g.speed;
+  const curD = DIRS[ g.dir ];
+  g.x += curD.x * step;
+  g.y += curD.y * step;
   wrapTunnel( g, width );
 }
 

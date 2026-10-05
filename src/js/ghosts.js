@@ -114,3 +114,4 @@ window.INKY_AHEAD = INKY_AHEAD;
 window.CLYDE_FEAR_TILES = CLYDE_FEAR_TILES;
 window.ghostTarget = ghostTarget;
 window.decideGhost = decideGhost;
+window.OPPOSITE = OPPOSITE;

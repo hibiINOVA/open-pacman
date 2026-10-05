@@ -72,14 +72,18 @@ const GHOST_STARTS = [
 ];
 
 function inPen( x, y ) {
-  return x >= PEN.x0 && x <= PEN.x1 && y >= PEN.y0 && y <= PEN.y1;
+  const rx = Math.round( x );
+  const ry = Math.round( y );
+  return rx >= PEN.x0 && rx <= PEN.x1 && ry >= PEN.y0 && ry <= PEN.y1;
 }
 
 // La celda de puerta (tile 3) es lo unico que enlaza la pen con el pasillo.
 function isDoor( grid, x, y ) {
-  if ( y < 0 || y >= grid.length ) return false;
-  if ( x < 0 || x >= grid[ 0 ].length ) return false;
-  return grid[ y ][ x ] === 3;
+  const rx = Math.round( x );
+  const ry = Math.round( y );
+  if ( ry < 0 || ry >= grid.length ) return false;
+  if ( rx < 0 || rx >= grid[ 0 ].length ) return false;
+  return grid[ ry ][ rx ] === 3;
 }
 
 window.MAZE = MAZE;

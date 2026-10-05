@@ -86,6 +86,10 @@ function canMove( grid, x, y, dir, actor, ghost ) {
   if ( actor === 'ghost' && ghost ) {
     const inPenArea = inPen( x, y ) || isDoor( grid, x, y );
     const intoPenArea = inPen( tx, ty ) || isDoor( grid, tx, ty );
+    if ( ghost.mode === 'eaten' ) {
+      // Los fantasmas comidos (ojos) pueden regresar a traves de la puerta a la pen
+      return true;
+    }
     // Sin liberar: la pen y la puerta son su unico alcance. Sin confinar: se
     // mueve libre (su objetivo es salir) pero ya no puede volver a entrar.
     if ( ghost.insidePen ) {
@@ -161,6 +165,16 @@ function moveGhost( game, g ) {
   if ( aligned( g.x ) && aligned( g.y ) ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
+
+    // Regenerar si estaba en modo eaten y llego a la zona de la pen/puerta
+    if ( g.mode === 'eaten' ) {
+      if ( ( g.x === PEN_EXIT.x && g.y === PEN_EXIT.y ) || inPen( g.x, g.y ) || isDoor( grid, g.x, g.y ) ) {
+        g.mode = 'normal';
+        g.speed = GHOST_SPEED;
+        g.insidePen = false;
+      }
+    }
+
     decideGhost( game, g );
     if ( ! canMove( grid, g.x, g.y, g.dir, 'ghost', g ) ) return;
   }
@@ -226,7 +240,11 @@ function update( game ) {
   for ( const g of game.ghosts ) {
     if ( collides( game.pacman, g ) ) {
       if ( g.mode === 'frightened' ) {
-        // En paso 4 se detalla completamente comer fantasmas
+        const scoreGain = GHOST_SCORES[ game.ghostsEatenInChain ] || 1600;
+        game.score += scoreGain;
+        game.ghostsEatenInChain++;
+        g.mode = 'eaten';
+        g.speed = GHOST_EATEN_SPEED;
       } else if ( g.mode !== 'eaten' ) {
         game.lives--;
         if ( game.lives <= 0 ) {

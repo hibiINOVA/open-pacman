@@ -55,6 +55,7 @@ function targetClyde( game, g ) {
 // el pasillo. Sin esto, un fantasma liberado parado en la puerta recuperar su
 // personalidad y podria ser empujado de vuelta hacia la pen.
 function ghostTarget( game, g ) {
+  if ( g.mode === 'eaten' ) return PEN_EXIT;
   if ( g.insidePen || inPen( g.x, g.y ) || isDoor( game.grid, g.x, g.y ) ) return PEN_EXIT;
   if ( g.kind === 'pinky' ) return targetPinky( game );
   if ( g.kind === 'inky' ) return targetInky( game );

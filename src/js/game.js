@@ -1,6 +1,6 @@
 // game.js
 // Estado y reglas. Depende de globals de maze.js: MAZE, TUNNEL_ROW,
-// PACMAN_START, GHOST_STARTS.
+// PACMAN_START, GHOST_STARTS, inPen, isDoor. La IA esta en ghosts.js.
 
 const DIRS = {
   left: { x: -1, y: 0 },
@@ -8,7 +8,6 @@ const DIRS = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
 };
-const OPPOSITE = { left: 'right', right: 'left', up: 'down', down: 'up' };
 
 const PACMAN_SPEED = 0.125; // 1/8 celda/frame -> alinea cada 8 frames
 const GHOST_SPEED = 0.1;    // 1/10 celda/frame
@@ -28,6 +27,7 @@ function createGame() {
     score: 0,
     lives: 3,
     dotsRemaining: dots,
+    dotsEaten: 0,
     grid,
     pacman: {
       x: PACMAN_START.x,
@@ -42,6 +42,9 @@ function createGame() {
       dir: 'up',
       speed: GHOST_SPEED,
       kind: g.kind,
+      dotLimit: g.dotLimit,
+      corner: g.corner,
+      insidePen: g.insidePen,
     } ) ),
   };
 }
@@ -63,14 +66,26 @@ function isWall( grid, x, y, actor ) {
 }
 
 // Puede el actor avanzar desde (x,y) en la direccion dir?
-function canMove( grid, x, y, dir, actor ) {
+function canMove( grid, x, y, dir, actor, ghost ) {
   const d = DIRS[ dir ];
   if ( !d ) return false;
   const tx = x + d.x;
   const ty = y + d.y;
   // Tunel: salir por un borde en la fila del tunel siempre es valido.
   if ( ty === TUNNEL_ROW && ( tx < 0 || tx >= grid[ 0 ].length ) ) return true;
-  return !isWall( grid, tx, ty, actor );
+  if ( isWall( grid, tx, ty, actor ) ) return false;
+  if ( actor === 'ghost' && ghost ) {
+    const inPenArea = inPen( x, y ) || isDoor( grid, x, y );
+    const intoPenArea = inPen( tx, ty ) || isDoor( grid, tx, ty );
+    // Sin liberar: la pen y la puerta son su unico alcance. Sin confinar: se
+    // mueve libre (su objetivo es salir) pero ya no puede volver a entrar.
+    if ( ghost.insidePen ) {
+      if ( ! intoPenArea ) return false;
+    } else if ( ! inPenArea && intoPenArea ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function wrapTunnel( a, width ) {
@@ -99,6 +114,7 @@ function movePacman( game ) {
       grid[ p.y ][ p.x ] = 0;
       game.score += 10;
       game.dotsRemaining--;
+      game.dotsEaten++;
     }
     // Si no puede seguir, se detiene en la celda.
     if ( !canMove( grid, p.x, p.y, p.dir, 'pacman' ) ) return;
@@ -110,37 +126,7 @@ function movePacman( game ) {
   wrapTunnel( p, width );
 }
 
-function decideGhost( game, g ) {
-  const grid = game.grid;
-  const p = game.pacman;
-
-  const options = Object.keys( DIRS ).filter(
-    ( dir ) => dir !== OPPOSITE[ g.dir ] && canMove( grid, g.x, g.y, dir, 'ghost' )
-  );
-  // Sin salida (callejon): permitir el giro de 180.
-  const choices = options.length ? options : [ '' + OPPOSITE[ g.dir ] ];
-
-  if ( g.kind === 'hunter' ) {
-    const px = Math.round( p.x );
-    const py = Math.round( p.y );
-    let best = choices[ 0 ];
-    let bestDist = Infinity;
-    for ( const dir of choices ) {
-      const d = DIRS[ dir ];
-      const nx = g.x + d.x;
-      const ny = g.y + d.y;
-      const dist = Math.abs( nx - px ) + Math.abs( ny - py );
-      if ( dist < bestDist ) {
-        bestDist = dist;
-        best = dir;
-      }
-    }
-    g.dir = best;
-  } else {
-    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
-  }
-}
-
+// La IA vive en ghosts.js (decideGhost); aqui solo se mueve.
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
@@ -149,13 +135,23 @@ function moveGhost( game, g ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
     decideGhost( game, g );
-    if ( !canMove( grid, g.x, g.y, g.dir, 'ghost' ) ) return;
+    if ( ! canMove( grid, g.x, g.y, g.dir, 'ghost', g ) ) return;
   }
 
   const d = DIRS[ g.dir ];
   g.x += d.x * g.speed;
   g.y += d.y * g.speed;
   wrapTunnel( g, width );
+}
+
+// Un fantasma sale de la pen al alcanzar su limite de puntos, o de inmediato si
+// ya no queda ningun punto por comer. Es el unico sitio que limpia insidePen:
+// mientras siga en true, canMove lo confina al interior y a la puerta.
+function releaseGhosts( game ) {
+  for ( const g of game.ghosts ) {
+    if ( ! g.insidePen ) continue;
+    if ( game.dotsEaten >= g.dotLimit || game.dotsRemaining <= 0 ) g.insidePen = false;
+  }
 }
 
 function resetPositions( game ) {
@@ -165,9 +161,13 @@ function resetPositions( game ) {
   p.dir = 'left';
   p.nextDir = null;
   game.ghosts.forEach( ( g, i ) => {
-    g.x = GHOST_STARTS[ i ].x;
-    g.y = GHOST_STARTS[ i ].y;
+    const start = GHOST_STARTS[ i ];
+    g.x = start.x;
+    g.y = start.y;
     g.dir = 'up';
+    g.dotLimit = start.dotLimit;
+    // Tras morir Pacman los cuatro salen: el arcade no vuelve a contar puntos.
+    g.insidePen = false;
   } );
 }
 
@@ -177,6 +177,7 @@ function collides( a, b ) {
 
 function update( game ) {
   movePacman( game );
+  releaseGhosts( game );
   game.ghosts.forEach( ( g ) => moveGhost( game, g ) );
 
   for ( const g of game.ghosts ) {

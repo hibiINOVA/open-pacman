@@ -51,12 +51,41 @@ const MAZE = MAZE_STR.map( ( row ) => row.split( '' ).map( parseTile ) );
 
 const TUNNEL_ROW = 14;
 const PACMAN_START = { x: 13, y: 23 };
+
+// Interior de la pen: filas 13-15, cols 11-16 (18 celdas transisables).
+// Fondo en la fila 16 (cols 10-17) y puerta en la fila 12 (cols 13-14).
+const PEN = { x0: 11, y0: 13, x1: 16, y1: 15 };
+
+// Tile al que se dirige un fantasma que sigue dentro de la pen: la celda del
+// pasillo central justo encima de la puerta.
+const PEN_EXIT = { x: 14, y: 11 };
+
+// dotLimit  = puntos globales que hay que comer para salir de la pen (0 = ya).
+// insidePen = su casilla inicial cae dentro de PEN.
+// corner    = destino de repliegue; en esta spec solo lo usa Clyde.
 const GHOST_STARTS = [
-  { x: 13, y: 14, kind: 'hunter' }, // dentro de la pen
-  { x: 14, y: 14, kind: 'random' }, // dentro de la pen
+  { kind: 'blinky', x: 13, y: 11, dotLimit: 0, insidePen: false, corner: { x: 25, y: 0 } },
+  { kind: 'pinky', x: 14, y: 14, dotLimit: 0, insidePen: true, corner: { x: 2, y: 0 } },
+  { kind: 'inky', x: 13, y: 14, dotLimit: 30, insidePen: true, corner: { x: 27, y: 30 } },
+  { kind: 'clyde', x: 14, y: 15, dotLimit: 60, insidePen: true, corner: { x: 0, y: 30 } },
 ];
+
+function inPen( x, y ) {
+  return x >= PEN.x0 && x <= PEN.x1 && y >= PEN.y0 && y <= PEN.y1;
+}
+
+// La celda de puerta (tile 3) es lo unico que enlaza la pen con el pasillo.
+function isDoor( grid, x, y ) {
+  if ( y < 0 || y >= grid.length ) return false;
+  if ( x < 0 || x >= grid[ 0 ].length ) return false;
+  return grid[ y ][ x ] === 3;
+}
 
 window.MAZE = MAZE;
 window.TUNNEL_ROW = TUNNEL_ROW;
 window.PACMAN_START = PACMAN_START;
 window.GHOST_STARTS = GHOST_STARTS;
+window.PEN = PEN;
+window.PEN_EXIT = PEN_EXIT;
+window.inPen = inPen;
+window.isDoor = isDoor;

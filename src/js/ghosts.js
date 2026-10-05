@@ -76,13 +76,20 @@ function debugGhost( g, target ) {
 // cuadrado, sin raiz). No da media vuelta salvo en callejon sin salida.
 function decideGhost( game, g ) {
   const grid = game.grid;
-  const target = ghostTarget( game, g );
 
   const options = Object.keys( DIRS ).filter(
     ( dir ) => dir !== OPPOSITE[ g.dir ] && canMove( grid, g.x, g.y, dir, 'ghost', g )
   );
   // Sin salida (callejon): permitir el giro de 180.
   const choices = options.length ? options : [ OPPOSITE[ g.dir ] ];
+
+  if ( g.mode === 'frightened' ) {
+    g.dir = choices[ Math.floor( Math.random() * choices.length ) ];
+    debugGhost( g, { x: -1, y: -1 } );
+    return;
+  }
+
+  const target = ghostTarget( game, g );
 
   let best = choices[ 0 ];
   let bestD2 = Infinity;
